@@ -1,0 +1,72 @@
+name: Build Push Update GitOps
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ACR_NAME: cignadevacr001
+  IMAGE_NAME: cigna-nginx
+  GITOPS_REPO: TIRUMALA9999/cigna-gitops
+
+jobs:
+  build-push-update-gitops:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      # Phase 1: filesystem/source scan
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name $ACR_NAME
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} .
+
+      # Phase 2 + 3: image scan and fail pipeline on HIGH/CRITICAL
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Push Docker image
+        run: |
+          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: cigna-gitops
+
+      - name: Update image tag in GitOps repo
+        run: |
+          cd cigna-gitops
+          sed -i "s|image: .*|image: $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}|g" apps/dev/rollout.yaml
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add apps/dev/rollout.yaml
+          git commit -m "update image to ${{ github.sha }}" || echo "No changes to commit"
+          git push

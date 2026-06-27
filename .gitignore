@@ -1,0 +1,19 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+crash.*.log
+.terraform.lock.hcl
+
+# Secrets / certs / credentials
+tls.key
+tls.crt
+credentials-*
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
