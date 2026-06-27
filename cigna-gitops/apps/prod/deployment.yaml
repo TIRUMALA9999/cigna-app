@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cigna-nginx
+  namespace: prod
+spec:
+  selector:
+    matchLabels:
+      app: cigna-nginx
+
+  template:
+    metadata:
+      labels:
+        app: cigna-nginx
+
+    spec:
+      containers:
+      - name: cigna-nginx
+        image: cignadevacr001.azurecr.io/cigna-nginx:d8aa2a03ad2e03746f2f2e5160a66514fa2fd580
+        ports:
+        - containerPort: 80
+
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "cigna-keyvault-secrets"

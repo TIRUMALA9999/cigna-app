@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: cigna-nginx
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: cigna-nginx
+
+  strategy:
+    blueGreen:
+      activeService: cigna-nginx-active
+      previewService: cigna-nginx-preview
+      autoPromotionEnabled: false
+
+  template:
+    metadata:
+      labels:
+        app: cigna-nginx
+
+    spec:
+      containers:
+      - name: cigna-nginx
+        image: cignadevacr001.azurecr.io/cigna-nginx:de2dfaefbb73e3b56e36984cbcf8fa651f70911b
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "cigna-keyvault-secrets"

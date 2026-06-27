@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cigna-local-cert
+  namespace: qa
+spec:
+  secretName: cigna-tls
+  issuerRef:
+    name: cigna-selfsigned-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - cigna.local
